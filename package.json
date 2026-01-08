@@ -1,0 +1,26 @@
+{
+  "name": "linkedin-cv-downloader-app",
+  "version": "1.0.0",
+  "description": "LinkedIn CV Downloader - Electron application for automated CV downloads from LinkedIn job applicants",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "linkedin",
+    "automation",
+    "cv",
+    "electron",
+    "playwright"
+  ],
+  "author": "Yusuf Burak Yetis",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "electron": "^39.2.7",
+    "playwright": "^1.57.0",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  }
+}
