@@ -3,7 +3,7 @@
  * Handles navigation between pages of applicants.
  */
 
-const { SELECTORS, DEFAULTS } = require('../../config/constants');
+const { SELECTORS, DEFAULTS, TIMEOUTS } = require('../../config/constants');
 const InteractionUtils = require('./interaction-utils');
 const Logger = require('../../utils/logger');
 
@@ -114,7 +114,6 @@ class PaginationManager {
 
                     await InteractionUtils.smoothScrollTo(this.page, btn);
                     await InteractionUtils.slowMouseMove(this.page, btn);
-
                     await this.page.mouse.down();
                     await InteractionUtils.microPause();
                     await this.page.mouse.up();
@@ -155,7 +154,7 @@ class PaginationManager {
             }
 
             // Wait for page load
-            await this.page.waitForTimeout(DEFAULTS.PAGE_LOAD_WAIT);
+            await this.page.waitForTimeout(TIMEOUTS.PAGE_LOAD_WAIT);
         }
     }
 }
