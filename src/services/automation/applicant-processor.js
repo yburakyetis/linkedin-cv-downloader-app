@@ -71,10 +71,8 @@ class ApplicantProcessor {
         await applicantLocator.scrollIntoViewIfNeeded();
         await InteractionUtils.microPause();
 
-        // Click applicant
-        await InteractionUtils.slowMouseMove(this.page, SELECTORS.APPLICATION_LIST); // Note: this moves to the FIRST match, might need refining if we want to move to THIS specific applicant. 
-        // Ideally we'd get the bounding box of 'applicantLocator' and move there.
-        // For now, let's just click.
+        // Move and click
+        await InteractionUtils.slowMouseMove(this.page, SELECTORS.APPLICATION_LIST);
         await applicantLocator.click();
 
         await this.waitForDetailsPanel();

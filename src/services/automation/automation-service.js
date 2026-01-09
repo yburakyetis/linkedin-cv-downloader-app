@@ -153,22 +153,8 @@ class AutomationService {
         const urlMatch = applicantsUrl.match(/\/jobs\/(\d+)\//);
         if (urlMatch) jobId = urlMatch[1];
 
-        // Create Timestamp
-        // Create Timestamp (Turkey Time / Configured Timezone)
-        const now = new Date();
-        const { DEFAULTS } = require('../../config/constants');
-
-        // get parts in the desired timezone
-        const getPart = (type) => now.toLocaleString('en-US', {
-            timeZone: DEFAULTS.TIMEZONE,
-            [type]: '2-digit',
-            hour12: false
-        });
-
-        // We can't easily use toISOString because it is UTC.
-        // Let's use Intl.DateTimeFormat parts or simple string manipulation on toLocaleString
-
-        const formatter = new Intl.DateTimeFormat('en-CA', { // en-CA gives YYYY-MM-DD
+        // Create timestamp in target timezone
+        const formatter = new Intl.DateTimeFormat('en-CA', {
             timeZone: DEFAULTS.TIMEZONE,
             year: 'numeric',
             month: '2-digit',
@@ -178,11 +164,8 @@ class AutomationService {
             hour12: false
         });
 
-        // Format: 2026-01-08, 20:43
         const parts = formatter.formatToParts(now);
-        const map = {};
-        parts.forEach(p => map[p.type] = p.value);
-
+        const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
         const timestamp = `${map.year}-${map.month}-${map.day}_${map.hour}-${map.minute}`;
 
         const folderName = jobTitle
