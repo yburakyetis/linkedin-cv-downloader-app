@@ -10,12 +10,7 @@ const InteractionUtils = require('./interaction-utils');
 const Logger = require('../../utils/logger');
 
 class ApplicantProcessor {
-    /**
-     * @param {object} page - Playwright page
-     * @param {object} config - User configuration
-     * @param {function} progressCallback - Callback for UI updates
-     * @param {string} downloadDir - Directory to save files
-     */
+
     constructor(page, config, progressCallback, downloadDir) {
         this.page = page;
         this.config = config;
@@ -30,9 +25,6 @@ class ApplicantProcessor {
         this.stopped = true;
     }
 
-    /**
-     * Processes all applicants on the current page.
-     */
     async processCurrentPage() {
         const applicants = this.page.locator(SELECTORS.APPLICATION_LIST);
         const count = await applicants.count();
@@ -63,17 +55,23 @@ class ApplicantProcessor {
         }
     }
 
-    /**
-     * Process a single applicant element.
-     * @param {object} applicantLocator 
-     */
     async processSingleApplicant(applicantLocator) {
-        await applicantLocator.scrollIntoViewIfNeeded();
+        // Natural scroll to element
+        await InteractionUtils.smoothScrollTo(this.page, applicantLocator);
         await InteractionUtils.microPause();
 
-        // Move and click
-        await InteractionUtils.slowMouseMove(this.page, SELECTORS.APPLICATION_LIST);
-        await applicantLocator.click();
+        // Specific move to THIS applicant's locator (not generic list)
+        // Previous generic selector caused mouse to go to the FIRST item always.
+        // Now it goes exactly to this specific applicant card.
+        await InteractionUtils.slowMouseMove(this.page, applicantLocator);
+
+        // Manual click at current mouse position (prevents snap-to-center teleports)
+        // We assume slowMouseMove left the cursor over the element.
+        // We verify overlap or just click. Safer is page.mouse.click via coordinates, 
+        // but simple page.mouse.down/up is good too.
+        await this.page.mouse.down();
+        await InteractionUtils.microPause();
+        await this.page.mouse.up();
 
         await this.waitForDetailsPanel();
         await this.scrollToDownloadSection();
