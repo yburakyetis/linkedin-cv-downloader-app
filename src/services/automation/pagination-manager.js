@@ -3,7 +3,7 @@
  * Handles navigation between pages of applicants.
  */
 
-const { SELECTORS, DEFAULTS } = require('../../config/constants');
+const { SELECTORS, DEFAULTS, TIMEOUTS } = require('../../config/constants');
 const InteractionUtils = require('./interaction-utils');
 const Logger = require('../../utils/logger');
 
@@ -125,7 +125,7 @@ class PaginationManager {
 
                     await InteractionUtils.slowMouseMove(this.page, `${SELECTORS.PAGINATION_PAGE_ITEMS}:nth-child(${i + 1}) button`);
                     await btn.click();
-                    await this.page.waitForTimeout(DEFAULTS.PAGE_LOAD_WAIT);
+                    await this.page.waitForTimeout(TIMEOUTS.PAGE_LOAD_WAIT);
                     return; // We arrived!
                 }
             }
@@ -162,7 +162,7 @@ class PaginationManager {
             }
 
             // Wait for page load
-            await this.page.waitForTimeout(DEFAULTS.PAGE_LOAD_WAIT);
+            await this.page.waitForTimeout(TIMEOUTS.PAGE_LOAD_WAIT);
         }
     }
 }
