@@ -27,7 +27,7 @@ const TIMEOUTS = {
 };
 
 const DEFAULTS = {
-    USER_AGENT: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    // USER_AGENT removed to prevent mismatch with browser version. Managed dynamically or by browser.
     LOCALE: 'en-US',
     TIMEZONE: 'Europe/Istanbul',
     VIEWPORT: { width: 1280, height: 720 }, // Fallback if start-maximized fails

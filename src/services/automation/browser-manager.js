@@ -3,9 +3,13 @@
  * Handles browser instantiation, context configuration, and stealth scripts.
  */
 
-const playwright = require('playwright');
+const { chromium } = require('playwright-extra');
+const stealthPlugin = require('puppeteer-extra-plugin-stealth');
 const path = require('path');
 const { DEFAULTS } = require('../../config/constants');
+
+// Apply stealth plugin
+chromium.use(stealthPlugin());
 
 class BrowserManager {
     constructor(userDataPath) {
@@ -20,15 +24,23 @@ class BrowserManager {
      */
     async launch() {
         // Use launchPersistentContext for better session persistence
-        this.browserContext = await playwright.chromium.launchPersistentContext(this.userDataPath, {
+        // playwright-extra wraps the standard chromium object
+        this.browserContext = await chromium.launchPersistentContext(this.userDataPath, {
             headless: false,
+            channel: 'chrome', // Try to use actual Chrome if available, falls back to bundled
             args: [
                 '--start-maximized',
-                '--disable-blink-features=AutomationControlled'
+                '--disable-blink-features=AutomationControlled',
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-infobars',
+                '--window-position=0,0',
+                '--ignore-certifcate-errors',
+                '--ignore-certifcate-errors-spki-list',
             ],
             viewport: null, // Allow window to determine viewport (maximized)
             acceptDownloads: true,
-            userAgent: DEFAULTS.USER_AGENT,
+            // User-Agent is now handled dynamically or by defaults to avoid mismatch
             locale: DEFAULTS.LOCALE,
             timezoneId: DEFAULTS.TIMEZONE,
             permissions: ['geolocation']
@@ -36,7 +48,8 @@ class BrowserManager {
 
         this.page = this.browserContext.pages()[0] || await this.browserContext.newPage();
 
-        await this.applyStealthScripts(this.page);
+        // Extra safety: Verify stealth measures
+        await this.verifyStealth(this.page);
 
         return {
             browserContext: this.browserContext,
@@ -45,39 +58,17 @@ class BrowserManager {
     }
 
     /**
-     * Injects scripts to mask automation from detection.
-     * @param {object} page 
+     * Optional: Log stealth status for debugging
      */
-    async applyStealthScripts(page) {
-        await page.addInitScript(() => {
-            // Remove webdriver property
-            Object.defineProperty(navigator, 'webdriver', {
-                get: () => false,
-            });
-
-            // Override plugins
-            Object.defineProperty(navigator, 'plugins', {
-                get: () => [1, 2, 3, 4, 5],
-            });
-
-            // Override languages
-            Object.defineProperty(navigator, 'languages', {
-                get: () => ['en-US', 'en'],
-            });
-
-            // Chrome runtime
-            window.chrome = {
-                runtime: {},
-            };
-
-            // Permissions
-            const originalQuery = window.navigator.permissions.query;
-            window.navigator.permissions.query = (parameters) => (
-                parameters.name === 'notifications' ?
-                    Promise.resolve({ state: Notification.permission }) :
-                    originalQuery(parameters)
-            );
-        });
+    async verifyStealth(page) {
+        try {
+            const webdriver = await page.evaluate(() => navigator.webdriver);
+            if (webdriver) {
+                console.warn('WARNING: navigator.webdriver is still true!');
+            }
+        } catch (e) {
+            // Ignore errors during verification
+        }
     }
 
     async close() {
