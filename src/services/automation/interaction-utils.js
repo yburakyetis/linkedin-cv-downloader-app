@@ -64,7 +64,8 @@ class InteractionUtils {
             const control2X = startX + (deltaX * 0.66) + (Math.random() - 0.5) * deviation;
             const control2Y = startY + (deltaY * 0.66) + (Math.random() - 0.5) * deviation;
 
-            const steps = 30 + Math.floor(Math.random() * 30);
+            // Variation in steps for speed (Faster: 10 to 25 steps)
+            const steps = 10 + Math.floor(Math.random() * 15);
 
             for (let i = 1; i <= steps; i++) {
                 const t = i / steps;

@@ -33,10 +33,10 @@ const DEFAULTS = {
     VIEWPORT: { width: 1280, height: 720 }, // Fallback if start-maximized fails
     WINDOW_WIDTH: 900,
     WINDOW_HEIGHT: 800,
-    MIN_WAIT_SECONDS: 3,
-    MAX_WAIT_SECONDS: 8,
-    MICRO_PAUSE_MIN: 300,
-    MICRO_PAUSE_MAX: 700,
+    MIN_WAIT_SECONDS: 1, // Faster human pace
+    MAX_WAIT_SECONDS: 4, // Occasional short pause
+    MICRO_PAUSE_MIN: 150, // Snappier interactions
+    MICRO_PAUSE_MAX: 400,
 };
 
 // Paths
