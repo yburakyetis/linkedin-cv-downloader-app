@@ -8,7 +8,6 @@ const stealthPlugin = require('puppeteer-extra-plugin-stealth');
 const path = require('path');
 const { DEFAULTS } = require('../../config/constants');
 
-// Apply stealth plugin
 chromium.use(stealthPlugin());
 
 class BrowserManager {
@@ -57,9 +56,6 @@ class BrowserManager {
         };
     }
 
-    /**
-     * Optional: Log stealth status for debugging
-     */
     async verifyStealth(page) {
         try {
             const webdriver = await page.evaluate(() => navigator.webdriver);

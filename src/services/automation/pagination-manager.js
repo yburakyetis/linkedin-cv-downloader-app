@@ -13,10 +13,6 @@ class PaginationManager {
         this.progressCallback = progressCallback;
     }
 
-    /**
-     * Checks if there is a next page available.
-     * @returns {Promise<boolean>}
-     */
     async isNextPageAvailable() {
         const pages = this.page.locator(SELECTORS.PAGINATION_PAGE_ITEMS);
         const activeBtn = this.page.locator(SELECTORS.ACTIVE_PAGE_BUTTON);
@@ -41,9 +37,6 @@ class PaginationManager {
         return activeIndex !== -1 && activeIndex + 1 < pageCount;
     }
 
-    /**
-     * Clicks the "Next" page button or the next numbered button.
-     */
     async switchToNextPage() {
         const pages = this.page.locator(SELECTORS.PAGINATION_PAGE_ITEMS);
         const pageCount = await pages.count();
@@ -62,16 +55,16 @@ class PaginationManager {
                         type: 'info'
                     });
 
-                    await nextBtn.scrollIntoViewIfNeeded();
+                    await InteractionUtils.smoothScrollTo(this.page, nextBtn);
                     await InteractionUtils.microPause();
 
-                    // Slow mouse movement before clicking
-                    // We need a specific selector for the mouse move
-                    // We can construct a CSS selector for the nth child
-                    const nextBtnSelector = `${SELECTORS.PAGINATION_PAGE_ITEMS}:nth-child(${i + 2}) button`;
-                    await InteractionUtils.slowMouseMove(this.page, nextBtnSelector);
+                    // Human-like move to the button
+                    await InteractionUtils.slowMouseMove(this.page, nextBtn);
 
-                    await nextBtn.click();
+                    // Manual Click
+                    await this.page.mouse.down();
+                    await InteractionUtils.microPause();
+                    await this.page.mouse.up();
 
                     await InteractionUtils.randomWait(DEFAULTS.MIN_WAIT_SECONDS, DEFAULTS.MAX_WAIT_SECONDS);
                     return true;
@@ -86,10 +79,6 @@ class PaginationManager {
         return false;
     }
 
-    /**
-     * Navigates to a specific start page if configured.
-     * @param {number} targetPage 
-     */
     async navigateToPage(targetPage) {
         if (targetPage <= 1) return;
 
@@ -123,8 +112,12 @@ class PaginationManager {
                         type: 'info'
                     });
 
-                    await InteractionUtils.slowMouseMove(this.page, `${SELECTORS.PAGINATION_PAGE_ITEMS}:nth-child(${i + 1}) button`);
-                    await btn.click();
+                    await InteractionUtils.smoothScrollTo(this.page, btn);
+                    await InteractionUtils.slowMouseMove(this.page, btn);
+
+                    await this.page.mouse.down();
+                    await InteractionUtils.microPause();
+                    await this.page.mouse.up();
                     await this.page.waitForTimeout(DEFAULTS.PAGE_LOAD_WAIT);
                     return; // We arrived!
                 }

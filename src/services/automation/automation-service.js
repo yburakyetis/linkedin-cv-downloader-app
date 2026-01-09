@@ -20,11 +20,6 @@ class AutomationService {
         this.stopped = false;
     }
 
-    /**
-     * Main entry point to start the download process.
-     * @param {object} config 
-     * @param {function} progressCallback 
-     */
     async startDownload(config, progressCallback) {
         this.stopped = false;
         const userDataPath = path.join(process.cwd(), PATHS.USER_DATA);
@@ -152,6 +147,8 @@ class AutomationService {
         let jobId = 'Unknown';
         const urlMatch = applicantsUrl.match(/\/jobs\/(\d+)\//);
         if (urlMatch) jobId = urlMatch[1];
+
+        const now = new Date();
 
         // Create timestamp in target timezone
         const formatter = new Intl.DateTimeFormat('en-CA', {
