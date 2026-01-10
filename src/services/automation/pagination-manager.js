@@ -8,8 +8,9 @@ const InteractionUtils = require('./interaction-utils');
 const Logger = require('../../utils/logger');
 
 class PaginationManager {
-    constructor(page, progressCallback) {
+    constructor(page, config, progressCallback) {
         this.page = page;
+        this.config = config || {};
         this.progressCallback = progressCallback;
     }
 
@@ -121,7 +122,9 @@ class PaginationManager {
                 { timeout: 15000 }
             );
 
-            await InteractionUtils.randomWait(DEFAULTS.MIN_WAIT_SECONDS, DEFAULTS.MAX_WAIT_SECONDS);
+            const waitMin = this.config.pageWaitMin || DEFAULTS.PAGE_WAIT_MIN;
+            const waitMax = this.config.pageWaitMax || DEFAULTS.PAGE_WAIT_MAX;
+            await InteractionUtils.randomWait(waitMin, waitMax);
             return true;
         } catch (e) {
             this.progressCallback({ message: 'Page navigation verification failed (Active page number did not increase)', type: 'warning' });

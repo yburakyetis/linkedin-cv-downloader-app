@@ -38,8 +38,9 @@
       border-radius: 16px;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
       padding: 30px;
-      max-width: 800px;
-      width: 100%;
+      max-width: 1100px;
+      /* Widened */
+      width: 90%;
       border: 1px solid rgba(255, 255, 255, 0.4);
       backdrop-filter: blur(10px);
     }
@@ -232,10 +233,11 @@
     .folder-info-box {
       background: #f7fafc;
       border: 1px solid #edf2f7;
-      display: flex;
-      flex-direction: column;
       display: none;
       /* controlled by js */
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
     }
 
     .folder-info-box.active {
@@ -332,115 +334,410 @@
     ::-webkit-scrollbar-thumb:hover {
       background: #a0aec0;
     }
+
+    /* Dashboard Stats Grid */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 15px;
+      text-align: center;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    }
+
+    .stat-card.primary {
+      border-bottom: 4px solid var(--primary-color);
+    }
+
+    .stat-card.success {
+      border-bottom: 4px solid #48bb78;
+    }
+
+    .stat-card.danger {
+      border-bottom: 4px solid #f56565;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+
+    /* Failed List */
+    .failed-list-container {
+      margin-top: 15px;
+      border: 1px solid #fed7d7;
+      background: #fff5f5;
+      border-radius: 6px;
+      padding: 10px;
+      display: none;
+      /* Hidden by default */
+    }
+
+    .failed-list-header {
+      font-size: 12px;
+      font-weight: 700;
+      color: #c53030;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #feb2b2;
+      padding-bottom: 4px;
+    }
+
+    .failed-item {
+      font-size: 11px;
+      color: #742a2a;
+      padding: 3px 0;
+      border-bottom: 1px solid rgba(197, 48, 48, 0.1);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .failed-item:last-child {
+      border-bottom: none;
+    }
+
+    .failed-reason {
+      font-style: italic;
+      color: #9b2c2c;
+    }
+
+    .lang-switch {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      padding: 6px 12px;
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      transition: all 0.2s;
+    }
+
+    .lang-item {
+      opacity: 0.5;
+    }
+
+    .lang-item.active {
+      opacity: 1;
+      color: var(--primary-color);
+      font-weight: 700;
+    }
+
+    /* Session Banner */
+    .session-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #ebf8ff;
+      border-left: 4px solid #3182ce;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      border-radius: 4px;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    .session-content {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .session-info {
+      font-size: 13px;
+      color: #2c5282;
+    }
+
+    .btn-outline-danger {
+      background: white;
+      border: 1px solid #e53e3e;
+      color: #e53e3e;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .btn-outline-danger:hover {
+      background: #fff5f5;
+    }
+
+    /* Section Styles */
+    .section-divider {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .section-title {
+      font-size: 14px;
+      margin-bottom: 12px;
+      color: #4a5568;
+    }
+
+    .form-grid-3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
   </style>
 </head>
 
 <body>
   <div class="container">
-    <div class="header-section">
-      <h1>LinkedIn CV Downloader</h1>
-      <p class="subtitle">Automated CV download tool for HR professionals</p>
+    <div class="lang-switch" id="langSwitch">
+      <span class="lang-item active" data-lang="tr">TR</span> |
+      <span class="lang-item" data-lang="en">EN</span>
     </div>
 
-    <div class="status-box info" id="resumeBanner"
-      style="display: none; margin-bottom: 20px; border-left: 4px solid #3182ce;">
-      <strong>Previous Session Found!</strong><br>
-      Resume where you left off?
-      <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-        <button type="button" class="btn-primary" id="resumeSessionBtn">Resume Session</button>
-        <button type="button" class="btn-danger" id="discardSessionBtn"
-          style="background: white; border: 1px solid #c53030;">Discard & New</button>
+    <div class="header-section">
+      <h1 data-i18n="app.title">LinkedIn CV Downloader</h1>
+      <p class="subtitle" data-i18n="app.subtitle">Automated CV download tool for HR professionals</p>
+    </div>
+
+    <div class="session-banner" id="resumeBanner" style="display: none;">
+      <div class="session-content">
+        <strong data-i18n="banner.sessionActive">Active Session Found</strong>
+        <span class="session-info" data-i18n="banner.sessionInfo">Settings loaded from previous session.</span>
       </div>
+      <button type="button" class="btn-outline-danger" id="discardSessionBtn" data-i18n="btn.discardSession">Discard &
+        New</button>
     </div>
 
     <form id="downloadForm">
       <div class="form-grid">
         <div class="form-group full-width">
-          <label for="applicantsUrl">Applicants Page URL</label>
+          <label for="applicantsUrl" data-i18n="label.applicantsUrl">Applicants Page URL</label>
           <input type="text" id="applicantsUrl" name="applicantsUrl"
             placeholder="https://www.linkedin.com/hiring/jobs/.../applicants/..." required>
         </div>
 
         <div class="form-group">
-          <label for="maxCvCount">Max CVs</label>
+          <label for="maxCvCount" data-i18n="label.maxCvCount">Max CVs</label>
           <input type="number" id="maxCvCount" name="maxCvCount" min="1" max="1000" required>
         </div>
 
         <div class="form-group">
-          <label for="startPage">Start Page</label>
+          <label for="startPage" data-i18n="label.startPage">Start Page</label>
           <input type="number" id="startPage" name="startPage" min="1" value="1" required>
-        </div>
-
-        <div class="form-group">
-          <label for="minWait">Min Wait (sec)</label>
-          <input type="number" id="minWait" name="minWait" min="1" max="60" required>
-        </div>
-
-        <div class="form-group">
-          <label for="maxWait">Max Wait (sec)</label>
-          <input type="number" id="maxWait" name="maxWait" min="1" max="120" required>
         </div>
       </div>
 
       <!-- Stealth Settings Section -->
-      <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
-        <h3 style="font-size: 14px; margin-bottom: 12px; color: #4a5568;">Stealth Settings</h3>
-        <div class="form-grid">
+      <!-- Stealth Settings Section -->
+      <div class="section-divider">
+        <h3 class="section-title" data-i18n="label.stealthSettings">Stealth Settings</h3>
+
+        <!-- Applicant Wait -->
+        <div class="form-grid form-grid-3" style="margin-bottom: 15px;">
           <div class="form-group">
-            <label for="breakInterval">Break Interval (CVs)</label>
-            <input type="number" id="breakInterval" name="breakInterval" min="5" max="100" required>
-            <div class="input-hint">Take a break after every N downloads</div>
+            <label for="minWait" data-i18n="label.minWait">Min Wait (sec)</label>
+            <input type="number" id="minWait" name="minWait" min="1" max="60" required>
           </div>
           <div class="form-group">
-            <label for="breakDurationMin">Break Min (sec)</label>
+            <label for="maxWait" data-i18n="label.maxWait">Max Wait (sec)</label>
+            <input type="number" id="maxWait" name="maxWait" min="1" max="120" required>
+          </div>
+          <div class="form-group" style="padding-top: 25px;">
+            <div class="input-hint" data-i18n="hint.applicantWait">Waits random duration...</div>
+          </div>
+        </div>
+
+        <!-- Page Wait -->
+        <div class="form-grid form-grid-3" style="margin-bottom: 15px;">
+          <div class="form-group">
+            <label for="pageWaitMin" data-i18n="label.pageWaitMin">Page Wait Min</label>
+            <input type="number" id="pageWaitMin" name="pageWaitMin" min="1" max="60" required>
+          </div>
+          <div class="form-group">
+            <label for="pageWaitMax" data-i18n="label.pageWaitMax">Page Wait Max</label>
+            <input type="number" id="pageWaitMax" name="pageWaitMax" min="1" max="120" required>
+          </div>
+          <div class="form-group" style="padding-top: 25px;">
+            <div class="input-hint" data-i18n="hint.pageWait">Waits random duration...</div>
+          </div>
+        </div>
+
+        <!-- Break Settings -->
+        <div class="form-grid form-grid-3">
+          <div class="form-group">
+            <label for="breakInterval" data-i18n="label.breakInterval">Break Interval (CVs)</label>
+            <input type="number" id="breakInterval" name="breakInterval" min="5" max="100" required>
+            <div class="input-hint" data-i18n="hint.breakInterval">Take a break after every N downloads</div>
+          </div>
+          <div class="form-group">
+            <label for="breakDurationMin" data-i18n="label.breakDurationMin">Break Min (sec)</label>
             <input type="number" id="breakDurationMin" name="breakDurationMin" min="10" max="600" required>
           </div>
           <div class="form-group">
-            <label for="breakDurationMax">Break Max (sec)</label>
+            <label for="breakDurationMax" data-i18n="label.breakDurationMax">Break Max (sec)</label>
             <input type="number" id="breakDurationMax" name="breakDurationMax" min="10" max="600" required>
           </div>
         </div>
       </div>
 
       <div class="button-group">
-        <button type="submit" class="btn-primary" id="startBtn">Start</button>
+        <button type="submit" class="btn-primary" id="startBtn" data-i18n="btn.start"
+          data-i18n-title="tooltip.start">Start</button>
         <button type="button" class="btn-secondary" id="pauseBtn" style="background-color: #ecc94b; color: #744210;"
-          disabled>Pause</button>
-        <button type="button" class="btn-danger" id="stopBtn" disabled>Stop</button>
-        <button type="button" class="btn-secondary" id="resetBtn"
-          title="Clears login session and cookies. Use this if you need to log in to a different account.">Logout /
+          disabled data-i18n="btn.pause" data-i18n-title="tooltip.pause">Pause</button>
+        <button type="button" class="btn-danger" id="stopBtn" disabled data-i18n="btn.stop"
+          data-i18n-title="tooltip.stop">Stop</button>
+        <button type="button" class="btn-secondary" id="resetBtn" data-i18n="btn.reset"
+          data-i18n-title="tooltip.reset">Logout /
           Reset</button>
       </div>
     </form>
 
     <div class="info-box">
-      <strong>Note:</strong> Log in manually on first use. Session auto-saved.
+      <strong data-i18n="footer.note">Note: Log in manually on first use. Session auto-saved.</strong>
     </div>
 
-    <!-- Stats & Progress -->
-    <div class="progress-container">
-      <div class="stats-box" id="statsBox" style="display: none;">
-        <span>Downloaded</span>
-        <span class="count-value" id="downloadCounter">0 / 0</span>
-      </div>
+    <!-- Stats Grid -->
+    <div class="dashboard-grid" id="dashboardGrid" style="display: none;">
 
-      <div class="progress-bar" id="progressBar">
-        <div class="progress-fill" id="progressFill"></div>
+      <div class="stat-card success">
+        <span class="stat-value" id="statSuccess">0</span>
+        <span class="stat-label" data-i18n="stat.success">Successful</span>
       </div>
+      <div class="stat-card danger">
+        <span class="stat-value" id="statFailed">0</span>
+        <span class="stat-label" data-i18n="stat.failed">Failed / Skipped</span>
+      </div>
+    </div>
+
+    <!-- Failed List -->
+    <div class="failed-list-container" id="failedListContainer">
+      <div class="failed-list-header" data-i18n="header.failedList">FAILED APPLICANTS (Real-time)</div>
+      <div id="failedList"></div>
     </div>
 
     <div class="folder-info-box" id="folderInfoBox">
-      <div class="folder-header">
-        <span class="label">Save Location</span>
-        <span class="folder-name" id="folderName">-</span>
-      </div>
-      <div class="folder-path" id="folderPath">-</div>
+      <span class="label" data-i18n="label.saveLocation">Save Location</span>:
+      <span class="folder-path" id="folderPath">-</span>
+      <!-- Hidden folder name to prevent errors if JS tries to access it, or remove entirely if JS is updated -->
+      <span id="folderName" style="display:none;"></span>
     </div>
 
-    <div class="status-box" id="statusBox"></div>
+    <!-- div class="status-box" id="statusBox"></div -->
     <div class="log-output" id="logOutput"></div>
+
+    <!-- Custom Report Modal -->
+    <div id="reportModal" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <h2 data-i18n="report.title">Process Completed</h2>
+        <div class="modal-body" id="reportBody">
+          <!-- Stats and list inserted here -->
+        </div>
+        <div class="modal-footer">
+          <button class="btn-primary" id="closeReportBtn" data-i18n="btn.close">Close</button>
+        </div>
+      </div>
+    </div>
   </div>
 
+  <style>
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background: white;
+      width: 90%;
+      max-width: 800px;
+      /* Wide format */
+      max-height: 80vh;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-content h2 {
+      margin: 0;
+      padding: 15px 20px;
+      background: #f7fafc;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 18px;
+    }
+
+    .modal-body {
+      padding: 20px;
+      overflow-y: auto;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .modal-footer {
+      padding: 15px 20px;
+      border-top: 1px solid #e2e8f0;
+      text-align: right;
+    }
+
+    /* Report Specifics */
+    .report-stat {
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 5px;
+    }
+
+    .report-list {
+      margin-top: 15px;
+      background: #fff5f5;
+      border: 1px solid #feb2b2;
+      border-radius: 6px;
+      padding: 10px;
+    }
+
+    .report-list ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .report-list li {
+      margin-bottom: 4px;
+      color: #c53030;
+    }
+  </style>
+
+  <script src="./src/config/locales/tr.js"></script>
+  <script src="./src/config/locales/en.js"></script>
+  <script src="./src/config/locales.js"></script>
   <script src="./src/renderer/renderer.js"></script>
 </body>
 

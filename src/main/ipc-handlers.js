@@ -18,9 +18,19 @@ class IpcHandlers {
         ipcMain.handle('start-download', async (event, config) => {
             try {
                 const mainWindow = WindowManager.getMainWindow();
-                const result = await automationService.startDownload(config, (progress) => {
+                const result = await automationService.startDownload(config, (data) => {
                     if (mainWindow) {
-                        mainWindow.webContents.send('download-progress', progress);
+                        mainWindow.webContents.send('download-progress', data);
+
+                        if (data.failure) {
+                            // Determine failure type/reason
+                            const reason = data.failure.reason || 'Unknown Error';
+                            const name = data.failure.name || 'Unknown Applicant';
+                            const page = data.failure.page;
+
+                            // Add to Renderer UI log
+                            mainWindow.webContents.send('add-failure-log', { name, reason, page });
+                        }
                     }
                 });
                 return { success: true, result };
@@ -42,7 +52,7 @@ class IpcHandlers {
 
         ipcMain.handle('reset-session', async () => {
             try {
-                const userDataPath = path.join(process.cwd(), PATHS.USER_DATA);
+                const userDataPath = require('electron').app.getPath('userData');
                 await fs.rm(userDataPath, { recursive: true, force: true });
                 return { success: true };
             } catch (error) {
@@ -86,7 +96,7 @@ class IpcHandlers {
         // Check Session (basic check if user_data exists)
         ipcMain.handle('check-session', async () => {
             try {
-                const userDataPath = path.join(process.cwd(), PATHS.USER_DATA);
+                const userDataPath = require('electron').app.getPath('userData');
                 try {
                     await fs.access(userDataPath);
                     const files = await fs.readdir(userDataPath);

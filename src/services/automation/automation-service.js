@@ -13,6 +13,8 @@ const PaginationManager = require('./pagination-manager');
 const ApplicantProcessor = require('./applicant-processor');
 const StateManager = require('../state-manager');
 
+const { app } = require('electron');
+
 class AutomationService {
     constructor() {
         this.browserManager = null;
@@ -23,7 +25,7 @@ class AutomationService {
 
     async startDownload(config, progressCallback) {
         this.stopped = false;
-        const userDataPath = path.join(process.cwd(), PATHS.USER_DATA);
+        const userDataPath = app.getPath('userData');
 
         try {
             progressCallback({ message: 'Launching browser...', type: 'info' });
@@ -91,7 +93,7 @@ class AutomationService {
             // 5. Initialize Components
             const procConfig = { ...config, jobTitle: folderInfo.jobTitle || (resumeState ? resumeState.jobTitle : 'Unknown Position') };
             this.processor = new ApplicantProcessor(page, procConfig, progressCallback, folderInfo.folderPath);
-            this.pagination = new PaginationManager(page, progressCallback);
+            this.pagination = new PaginationManager(page, procConfig, progressCallback);
 
             // Hydrate processor with resumed state
             if (resumeState && resumeState.processedApplicants) {
@@ -112,7 +114,7 @@ class AutomationService {
 
             progressCallback({
                 message: 'Starting CV download process...',
-                status: `Processing applicants... (CVs will be saved to: ${folderInfo.folderName})`,
+                status: `Processing applicants...`,
                 folderName: folderInfo.folderName,
                 folderPath: folderInfo.folderPath
             });
@@ -156,17 +158,29 @@ class AutomationService {
             progressCallback({
                 message: 'Login required. Please log in to LinkedIn in the browser window.',
                 type: 'warning',
-                status: 'Waiting for manual authentication...',
+                status: 'Waiting for manual authentication (Max 5 mins)...',
                 statusType: 'warning'
             });
 
             await page.goto('https://www.linkedin.com/login');
 
-            // Wait for manual login
-            await page.waitForTimeout(TIMEOUTS.MANUAL_LOGIN_WAIT);
+            // Wait for manual login (Dynamic Polling)
+            const startTime = Date.now();
+            let loggedIn = false;
 
-            if (!page.url().includes('/login')) {
-                progressCallback({ message: 'Session state saved successfully', type: 'success' });
+            while (Date.now() - startTime < TIMEOUTS.MANUAL_LOGIN_WAIT) {
+                const url = page.url();
+                if (!url.includes('/login') && !url.includes('/uas/login')) {
+                    loggedIn = true;
+                    break;
+                }
+                await page.waitForTimeout(1000);
+            }
+
+            if (loggedIn) {
+                progressCallback({ message: 'Login detected! Session state saved.', type: 'success' });
+                // Give it a moment to settle cookies/redirects
+                await page.waitForTimeout(2000);
                 return true;
             }
             return false;
@@ -262,8 +276,7 @@ class AutomationService {
                 }
 
                 // Optimization: Periodic Memory Cleanup
-                // Every 10 pages, reload the page to clear DOM/JS heap accumulation
-                // This prevents the "Electron froze" issue on long runs (1000+ items)
+                // User Request: Reload on every page to ensure clean state and prevent memory leaks.
                 const newPage = await this.pagination.getActivePageNumber();
 
                 if (newPage > 1) {

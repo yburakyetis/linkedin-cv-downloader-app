@@ -1,3 +1,8 @@
+/**
+ * State Manager
+ * Handles persistent state saving and loading for pause/resume functionality.
+ */
+
 const fs = require('fs').promises;
 const path = require('path');
 const { PATHS } = require('../config/constants');
@@ -5,42 +10,48 @@ const Logger = require('../utils/logger');
 
 class StateManager {
     constructor() {
-        this.userDataPath = path.join(process.cwd(), PATHS.USER_DATA || 'user_data');
-        this.stateFilePath = path.join(this.userDataPath, 'app_state.json');
+        this.userDataPath = require('electron').app.getPath('userData');
+        this.stateFilePath = path.join(this.userDataPath, 'job_state.json');
+        this.state = null;
     }
 
-    async _ensureDir() {
+    async saveState(data) {
         try {
             await fs.mkdir(this.userDataPath, { recursive: true });
-        } catch (e) {
-            // Ignore error if it exists
+            const stateToSave = {
+                timestamp: new Date().toISOString(),
+                ...data
+            };
+            await fs.writeFile(this.stateFilePath, JSON.stringify(stateToSave, null, 2));
+            this.state = stateToSave;
+        } catch (error) {
+            Logger.error('Failed to save state', error);
         }
     }
 
     async loadState() {
         try {
-            await this._ensureDir();
+            await fs.access(this.stateFilePath);
             const data = await fs.readFile(this.stateFilePath, 'utf8');
-            return JSON.parse(data);
+            this.state = JSON.parse(data);
+            return this.state;
         } catch (error) {
-            // Return empty object if file doesn't exist or is invalid
-            // Don't log error here as it's normal on first run
-            return {};
+            // No state file exists, which is normal for a fresh start
+            return null;
         }
     }
 
-    async saveState(newState) {
+    async clearState() {
         try {
-            await this._ensureDir();
-            // Load existing to merge to prevent overwriting other keys
-            const current = await this.loadState();
-            const merged = { ...current, ...newState };
-            await fs.writeFile(this.stateFilePath, JSON.stringify(merged, null, 2));
-            return merged;
+            await fs.rm(this.stateFilePath, { force: true });
+            this.state = null;
         } catch (error) {
-            Logger.error('Failed to save state:', error);
-            return null;
+            Logger.warn('Failed to clear state file', error);
         }
+    }
+
+    getState() {
+        return this.state;
     }
 }
 

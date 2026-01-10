@@ -10,6 +10,10 @@ const SELECTORS = {
     DOWNLOAD_BUTTON: 'a.inline-flex.align-items-center.link-without-visited-state[href], a:has(svg[data-test-icon="download-medium"])',
     DOWNLOAD_BUTTON_FALLBACK: '.artdeco-card a[href]:has(svg)',
     DOWNLOAD_BUTTON_BROAD: 'a[download], a[href$=".pdf"], button[aria-label*="Download"], a[aria-label*="Download"], a[aria-label*="indir"], a[aria-label*="İndir"]', // Catch-all including Turkish
+    // Dropdown menu selectors
+    MORE_ACTIONS_BUTTON: 'button[aria-label*="More actions"], button[aria-label*="Diğer işlemler"], .artdeco-dropdown__trigger',
+    DOWNLOAD_MENU_ITEM: '.artdeco-dropdown__content a[href]:has(svg), .artdeco-dropdown__content a[href]:has-text("Download"), .artdeco-dropdown__content a[href]:has-text("İndir")',
+
     PAGINATION_PAGE_ITEMS: '.artdeco-pagination__pages li', // Broadened to include ellipsis items that might lack data attributes
     ACTIVE_PAGE_BUTTON: 'button[aria-current="true"]',
     JOB_TITLE: '.artdeco-entity-lockup__title',
@@ -28,7 +32,7 @@ const TIMEOUTS = {
     DOWNLOAD_EVENT: 30000,
     NAVIGATE_APPLICANTS: 60000,
     APPLICANTS_LIST_VISIBLE: 30000,
-    MANUAL_LOGIN_WAIT: 60000, // Increased for 2FA/Simplicity
+    MANUAL_LOGIN_WAIT: 300000, // Increased to 5 minutes per user request
     CHECK_LOGIN_TIMEOUT: 10000,
     PAGE_LOAD_WAIT: 3000,
     RETRY_WAIT: 2000, // Wait before retry click
@@ -44,6 +48,8 @@ const DEFAULTS = {
     WINDOW_HEIGHT: 800,
     MIN_WAIT_SECONDS: 4,
     MAX_WAIT_SECONDS: 7,
+    PAGE_WAIT_MIN: 5,
+    PAGE_WAIT_MAX: 10,
     MICRO_PAUSE_MIN: 300,
     MICRO_PAUSE_MAX: 600,
     RETRY_ATTEMPTS: 7,
