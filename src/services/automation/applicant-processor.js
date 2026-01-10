@@ -95,8 +95,16 @@ class ApplicantProcessor {
                 await this.page.waitForTimeout(1000);
             }
 
-            const applicants = this.page.locator(SELECTORS.APPLICATION_LIST);
-            const currentCount = await applicants.count();
+            let currentCount = 0;
+            try {
+                currentCount = await applicants.count();
+            } catch (e) {
+                if (this.stopped || e.message.includes('closed')) {
+                    this.log('Browser closed or process stopped, exiting loop.', 'debug');
+                    return;
+                }
+                throw e;
+            }
 
             if (processedIndex >= currentCount) {
                 this.log('Reached end of list, trying to load more applicants...', 'debug');
@@ -174,16 +182,15 @@ class ApplicantProcessor {
                         // 1. Reload the page
                         try {
                             await this.page.reload({ waitUntil: 'domcontentloaded', timeout: TIMEOUTS.NAVIGATE_APPLICANTS });
-                        } catch (reloadErr) {
-                            this.log(`Reload timed out: ${reloadErr.message}. Stopping hard load to recover...`, 'warning');
-                            try { await this.page.evaluate(() => window.stop()); } catch (e) { }
-                        }
-
-                        // 2. Wait for list to be visible again
-                        try {
+                            // 2. Wait for list to be visible again
                             await this.page.waitForSelector(SELECTORS.APPLICATION_LIST, { timeout: TIMEOUTS.APPLICANTS_LIST_VISIBLE });
-                        } catch (e) {
-                            this.log('Timeout waiting for list after reload', 'error');
+                        } catch (err) {
+                            if (this.stopped || err.message.includes('closed') || err.message.includes('ERR_ABORTED')) {
+                                this.log(`Reload interrupted or browser closed: ${err.message}`, 'warning');
+                                return; // Exit loop
+                            }
+                            this.log(`Reload error: ${err.message}. Stopping hard load to recover...`, 'warning');
+                            try { await this.page.evaluate(() => window.stop()); } catch (e) { }
                         }
 
                         this.log('Recovering scroll position...', 'debug');
@@ -197,59 +204,52 @@ class ApplicantProcessor {
                         let stagnantCount = 0;
                         let lastCount = 0;
 
-                        while (retryScrolls < MAX_SCROLL_RETRIES) {
-                            const refreshedApplicants = this.page.locator(SELECTORS.APPLICATION_LIST);
-                            recoveredCount = await refreshedApplicants.count();
-
-                            // UX: Log progress every 5 seconds (Debug only to avoid clutter)
-                            const now = Date.now();
-                            if (now - lastLogTime > 5000) {
-                                const pagePrefix = (await this._getCurrentPageNumber()) || '?';
-                                this.log(`List Recovery (Page ${pagePrefix}): Loaded ${recoveredCount} of ${processedIndex + 1} required applicants...`, 'debug');
-                                lastLogTime = now;
-                            }
-
-                            if (recoveredCount > processedIndex) {
-                                break; // Found our spot
-                            }
-
-                            // Stuck detection: If count hasn't changed for 10 attempts
-                            if (recoveredCount === lastCount) {
-                                stagnantCount++;
-                                if (stagnantCount >= 10) {
-                                    this.log('List recovery stuck (count stagnant). Reloading page again to reset...', 'warning');
-                                    try {
-                                        await this.page.reload({ waitUntil: 'domcontentloaded', timeout: TIMEOUTS.NAVIGATE_APPLICANTS });
-                                    } catch (e) {
-                                        this.log(`Stuck recovery reload timed out: ${e.message}. Stopping hard load...`, 'warning');
-                                        try { await this.page.evaluate(() => window.stop()); } catch (stopErr) { }
-                                    }
-                                    try { await this.page.waitForSelector(SELECTORS.APPLICATION_LIST, { timeout: TIMEOUTS.APPLICANTS_LIST_VISIBLE }); } catch (e) { }
-
-                                    await this.page.waitForTimeout(3000);
-                                    stagnantCount = 0;
-                                    retryScrolls = 0; // Reset retries
-                                    lastCount = 0;
-                                    continue;
-                                }
-                            } else {
-                                stagnantCount = 0;
-                            }
-                            lastCount = recoveredCount;
-
-                            // Scroll Logic: Try multiple ways to trigger infinite scroll
+                        while (retryScrolls < MAX_SCROLL_RETRIES && !this.stopped) {
                             try {
-                                // Method 1: Scroll container
+                                const refreshedApplicants = this.page.locator(SELECTORS.APPLICATION_LIST);
+                                recoveredCount = await refreshedApplicants.count();
+
+                                // UX: Log progress every 5 seconds (Debug only to avoid clutter)
+                                const now = Date.now();
+                                if (now - lastLogTime > 5000) {
+                                    const pagePrefix = (await this._getCurrentPageNumber()) || '?';
+                                    this.log(`List Recovery (Page ${pagePrefix}): Loaded ${recoveredCount} of ${processedIndex + 1} required applicants...`, 'debug');
+                                    lastLogTime = now;
+                                }
+
+                                if (recoveredCount > processedIndex) {
+                                    break; // Found our spot
+                                }
+
+                                // Stuck detection: If count hasn't changed for 10 attempts
+                                if (recoveredCount === lastCount) {
+                                    stagnantCount++;
+                                    if (stagnantCount >= 10) {
+                                        this.log('List recovery stagnant. Forcing reload...', 'warning');
+                                        await this.page.reload({ waitUntil: 'domcontentloaded', timeout: TIMEOUTS.NAVIGATE_APPLICANTS });
+                                        await this.page.waitForSelector(SELECTORS.APPLICATION_LIST, { timeout: TIMEOUTS.APPLICANTS_LIST_VISIBLE });
+                                        stagnantCount = 0;
+                                        continue;
+                                    }
+                                } else {
+                                    stagnantCount = 0;
+                                }
+                                lastCount = recoveredCount;
+
+                                // Scroll Logic
                                 const listContainer = refreshedApplicants.first().locator('..');
                                 await listContainer.evaluate(el => el.scrollTop = el.scrollHeight);
-
-                                // Method 2: Window scroll (fallback)
                                 await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-                            } catch (e) { }
 
-                            // Increase wait slightly to allow network load
-                            await this.page.waitForTimeout(2000);
-                            retryScrolls++;
+                                await this.page.waitForTimeout(2000);
+                                retryScrolls++;
+                            } catch (err) {
+                                if (this.stopped || err.message.includes('closed')) {
+                                    return;
+                                }
+                                this.log(`Recovery loop error: ${err.message}`, 'warning');
+                                break;
+                            }
                         }
 
                         this.log(`Scroll recovery complete. Items: ${recoveredCount}, Target Index: ${processedIndex}`, 'debug');

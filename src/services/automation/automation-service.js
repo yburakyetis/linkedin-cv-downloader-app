@@ -39,7 +39,16 @@ class AutomationService {
             }
 
             progressCallback({ message: `Navigating to applicants page: ${config.applicantsUrl}`, type: 'info' });
-            await page.goto(config.applicantsUrl, { waitUntil: 'domcontentloaded', timeout: TIMEOUTS.NAVIGATE_APPLICANTS });
+            try {
+                await page.goto(config.applicantsUrl, { waitUntil: 'domcontentloaded', timeout: TIMEOUTS.NAVIGATE_APPLICANTS });
+            } catch (error) {
+                if (this.stopped || error.message.includes('ERR_ABORTED') || error.message.includes('Timeout')) {
+                    Logger.info('Navigation interrupted by user stop or timeout. Cleaning up...');
+                    if (this.browserManager) await this.browserManager.close();
+                    return { totalDownloaded: 0, failedCount: 0, stopped: true };
+                }
+                throw error;
+            }
 
             try {
                 await page.waitForSelector(SELECTORS.APPLICATION_LIST, { timeout: TIMEOUTS.APPLICANTS_LIST_VISIBLE, state: 'visible' });
@@ -287,17 +296,21 @@ class AutomationService {
 
     async stop() {
         this.stopped = true;
-        if (this.processor) this.processor.stop();
+        if (this.processor) {
+            await this.processor.stop();
+        }
 
-        // Final state save logic is handled within the processor loop, 
-        // but we can ensure everything is flushed if needed.
+        // Give the loop a moment to notice the 'stopped' flag and exit gracefully
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Force close browser immediately if it exists, to ensure terminal process releases
         if (this.browserManager) {
             try {
                 await this.browserManager.close();
             } catch (e) {
-                Logger.warn('Error closing browser during stop', e);
+                // If it's already closed, ignore the error
+                if (!e.message.includes('closed')) {
+                    Logger.warn('Error closing browser during stop', e);
+                }
             }
         }
     }
