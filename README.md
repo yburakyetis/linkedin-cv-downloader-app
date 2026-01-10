@@ -223,4 +223,15 @@ For issues or questions:
 
 ---
 
-**Note**: This tool is for legitimate HR use cases. Always comply with LinkedIn's Terms of Service and respect applicant privacy.
+## ⚠️ Legal Disclaimer
+
+**EDUCATIONAL PURPOSES ONLY.**
+
+This software is designed strictly for educational and testing purposes to demonstrate browser automation capabilities using Electron and Playwright.
+
+- **LinkedIn Terms of Service**: Use of this tool may violate LinkedIn's Terms of Service regarding automated data collection (scraping). The developer assumes no liability for any account restrictions, bans, or legal consequences resulting from the use of this tool.
+- **User Responsibility**: You are solely responsible for how you use this tool. Ensure you comply with all applicable laws (including GDPR/KVKK) and platform policies.
+- **Privacy**: Respect the privacy of applicants. Do not share, publish, or misuse downloaded CV data.
+
+By downloading or using this software, you agree that the developer is not liable for any damages or legal actions associated with its use.
+
