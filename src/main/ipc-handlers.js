@@ -7,13 +7,14 @@ const { ipcMain } = require('electron');
 const fs = require('fs').promises;
 const path = require('path');
 const automationService = require('../services/automation/automation-service');
+const StateManager = require('../services/state-manager');
 const WindowManager = require('./window-manager');
 const { PATHS } = require('../config/constants');
 const Logger = require('../utils/logger');
 
 class IpcHandlers {
     static register() {
-        // Start Download
+
         ipcMain.handle('start-download', async (event, config) => {
             try {
                 const mainWindow = WindowManager.getMainWindow();
@@ -29,10 +30,9 @@ class IpcHandlers {
             }
         });
 
-        // Stop Download
         ipcMain.handle('stop-download', async () => {
             try {
-                automationService.stop();
+                await automationService.stop();
                 return { success: true };
             } catch (error) {
                 Logger.error('Stop download handler failed', error);
@@ -40,7 +40,6 @@ class IpcHandlers {
             }
         });
 
-        // Reset Session
         ipcMain.handle('reset-session', async () => {
             try {
                 const userDataPath = path.join(process.cwd(), PATHS.USER_DATA);
@@ -50,6 +49,38 @@ class IpcHandlers {
                 Logger.error('Reset session handler failed', error);
                 return { success: false, error: error.message };
             }
+        });
+
+        ipcMain.handle('pause-download', async () => {
+            try {
+                await automationService.pause();
+                return { success: true };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        });
+
+        ipcMain.handle('resume-download', async () => {
+            try {
+                await automationService.resume();
+                return { success: true };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        });
+
+        ipcMain.handle('check-resume-state', async () => {
+            try {
+                const state = await StateManager.loadState();
+                return { canResume: !!state, state };
+            } catch (error) {
+                return { canResume: false };
+            }
+        });
+
+        ipcMain.handle('discard-resume-state', async () => {
+            await StateManager.clearState();
+            return { success: true };
         });
 
         // Check Session (basic check if user_data exists)

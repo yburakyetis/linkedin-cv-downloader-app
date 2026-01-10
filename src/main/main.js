@@ -9,7 +9,6 @@ const WindowManager = require('./window-manager');
 const IpcHandlers = require('./ipc-handlers');
 const Logger = require('../utils/logger');
 
-// Register IPC handlers immediately
 IpcHandlers.register();
 
 app.whenReady().then(() => {

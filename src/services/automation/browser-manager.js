@@ -19,13 +19,17 @@ class BrowserManager {
 
     /**
      * Launches the browser with stealth settings and persistent context.
+     * @param {object} options - Launch options
+     * @param {boolean} [options.headless=false] - Whether to run in headless mode
      * @returns {Promise<object>} { browserContext, page }
      */
-    async launch() {
+    async launch(options = {}) {
+        const headless = options.headless !== undefined ? options.headless : false;
+
         // Use launchPersistentContext for better session persistence
         // playwright-extra wraps the standard chromium object
         this.browserContext = await chromium.launchPersistentContext(this.userDataPath, {
-            headless: false,
+            headless: headless,
             channel: 'chrome', // Try to use actual Chrome if available, falls back to bundled
             args: [
                 '--start-maximized',
@@ -37,7 +41,7 @@ class BrowserManager {
                 '--ignore-certifcate-errors',
                 '--ignore-certifcate-errors-spki-list',
             ],
-            viewport: null, // Allow window to determine viewport (maximized)
+            viewport: headless ? { width: 1920, height: 1080 } : null, // Force viewport in headless to allow desktop layout
             acceptDownloads: true,
             // User-Agent is now handled dynamically or by defaults to avoid mismatch
             locale: DEFAULTS.LOCALE,

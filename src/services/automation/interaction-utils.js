@@ -4,6 +4,7 @@
  */
 
 const { DEFAULTS } = require('../../config/constants');
+const Logger = require('../../utils/logger');
 
 class InteractionUtils {
 
@@ -11,7 +12,6 @@ class InteractionUtils {
         const wait = minSec + Math.floor(Math.random() * (maxSec - minSec + 1));
         return new Promise(resolve => setTimeout(resolve, wait * 1000));
     }
-
 
     static async microPause() {
         const min = DEFAULTS.MICRO_PAUSE_MIN;
@@ -27,21 +27,20 @@ class InteractionUtils {
      */
     static async slowMouseMove(page, selectorOrLocator) {
         try {
-            let element;
-            if (typeof selectorOrLocator === 'string') {
-                element = await page.locator(selectorOrLocator).first();
-            } else {
-                element = selectorOrLocator;
-            }
-
-            // Ensure bounding box is stable (wait for layout)
-            // If it's a locator, we can rely on it being resolved.
+            // ...
             let box = await element.boundingBox();
 
-            // If box is null, try to scroll it into view naturally first (if requested) or assume caller did it.
-            // But boundingBox returns null if element is not visible/in view or detached.
             if (!box) {
-                return;
+                // Try to scroll into view native if box missing
+                try {
+                    await element.scrollIntoViewIfNeeded();
+                    box = await element.boundingBox();
+                } catch (e) { }
+
+                if (!box) {
+                    Logger.debug(`slowMouseMove: Element not visible/found: ${typeof selectorOrLocator === 'string' ? selectorOrLocator : 'Locator'}`);
+                    return;
+                }
             }
 
             const targetX = box.x + (box.width * 0.2) + Math.random() * (box.width * 0.6);
@@ -105,53 +104,66 @@ class InteractionUtils {
      * @param {object} page 
      * @param {object} locator 
      */
+    /**
+     * Robust smooth scroll to element using native browser behavior + random adjustment.
+     * @param {object} page
+     * @param {object} locator
+     */
     static async smoothScrollTo(page, locator) {
         try {
-            // First check if already visible
-            if (await locator.isVisible()) return;
+            // First ensure it's attached
+            await locator.waitFor({ state: 'attached', timeout: 5000 });
 
-            // Get viewport height
-            const viewport = page.viewportSize();
-            if (!viewport) return;
+            // 1. Native Smooth Scroll to center (Handles sticky headers best)
+            await locator.evaluate(el => el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' }));
 
-            const box = await locator.evaluate(el => {
-                const rect = el.getBoundingClientRect();
-                return { top: rect.top, height: rect.height };
-            });
+            // 2. Wait for scroll to finish visually
+            await this.randomWait(0.5, 1);
 
-            // If found
-            if (box) {
-                // Calculate distance to scroll
-                // We want element in middle of screen (viewport.height / 2)
-                const targetY = box.top - (viewport.height / 2) + (box.height / 2);
+            // Extra safety: Scroll "up" slightly to ensure header doesn't cover it
+            // LinkedIn header is approx 60px. Moving content down 100px is safe.
+            await page.mouse.wheel(0, -100);
+            await this.microPause();
 
-                // Scroll in chunks
-                let currentScroll = 0;
-                const maxScroll = Math.abs(targetY);
-                const direction = targetY > 0 ? 1 : -1;
-
-                while (currentScroll < maxScroll) {
-                    // Random step size (simulate flick)
-                    const step = 50 + Math.floor(Math.random() * 100);
-                    const remaining = maxScroll - currentScroll;
-                    const scrollAmount = Math.min(step, remaining) * direction;
-
-                    await page.mouse.wheel(0, scrollAmount);
-                    currentScroll += Math.abs(scrollAmount);
-
-                    // Tiny friction pause
-                    if (Math.random() > 0.5) {
-                        await new Promise(r => setTimeout(r, 10 + Math.random() * 50));
-                    }
-                }
-            } else {
-                // Fallback
-                await locator.scrollIntoViewIfNeeded();
+            // 3. Small random correction with mouse to simulate human adjustment (Optional)
+            // This is "super stealth" - scrolling slightly after arriving
+            if (Math.random() > 0.5) {
+                const delta = (Math.random() - 0.5) * 100;
+                await page.mouse.wheel(0, delta);
+                await this.microPause();
             }
 
         } catch (e) {
-            // Fallback if anything fails
+            // Fallback to instant scroll if smooth fails
             try { await locator.scrollIntoViewIfNeeded(); } catch (z) { }
+        }
+    }
+
+    /**
+     * Simulates a user "reading" or being idle.
+     * Moves mouse randomly and scrolls up/down slightly.
+     * @param {object} page 
+     */
+    static async performRandomIdle(page) {
+        try {
+            // 1. Move mouse to a random safe spot
+            const viewport = page.viewportSize();
+            if (viewport) {
+                const x = Math.random() * viewport.width * 0.8 + viewport.width * 0.1;
+                const y = Math.random() * viewport.height * 0.8 + viewport.height * 0.1;
+                await page.mouse.move(x, y, { steps: 10 });
+            }
+
+            await this.randomWait(1, 3);
+
+            // 2. Random tiny scroll (Reading behavior)
+            if (Math.random() > 0.5) {
+                const scrollAmount = (Math.random() - 0.5) * 300; // Up or down
+                await page.mouse.wheel(0, scrollAmount);
+                await this.randomWait(1, 2);
+            }
+        } catch (e) {
+            // Ignore idle errors
         }
     }
 }

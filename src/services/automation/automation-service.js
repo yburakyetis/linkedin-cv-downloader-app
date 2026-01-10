@@ -6,11 +6,12 @@
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const { SELECTORS, TIMEOUTS, PATHS } = require('../../config/constants');
+const { SELECTORS, TIMEOUTS, PATHS, DEFAULTS } = require('../../config/constants');
 const Logger = require('../../utils/logger');
 const BrowserManager = require('./browser-manager');
 const PaginationManager = require('./pagination-manager');
 const ApplicantProcessor = require('./applicant-processor');
+const StateManager = require('../state-manager');
 
 class AutomationService {
     constructor() {
@@ -25,22 +26,18 @@ class AutomationService {
         const userDataPath = path.join(process.cwd(), PATHS.USER_DATA);
 
         try {
-            // 1. Launch Browser
             progressCallback({ message: 'Launching browser...', type: 'info' });
             this.browserManager = new BrowserManager(userDataPath);
-            const { page } = await this.browserManager.launch();
+            const { page } = await this.browserManager.launch({ headless: config.headless });
 
-            // 2. Check Session
             progressCallback({ message: 'Checking session status...', type: 'info' });
             const isAuthenticated = await this.checkLogin(page, progressCallback);
 
             if (!isAuthenticated) {
-                // checkLogin handles the wait/manual login logic. 
-                // If we are here and still not authenticated (e.g. user closed window), we should probably stop.
-                // But checkLogin logic below waits for manual login.
+                // checkLogin waits for manual login, so if we return false here, 
+                // it implies the user closed the window or authentication failed.
             }
 
-            // 3. Navigate to Applicants Page
             progressCallback({ message: `Navigating to applicants page: ${config.applicantsUrl}`, type: 'info' });
             await page.goto(config.applicantsUrl, { waitUntil: 'domcontentloaded', timeout: TIMEOUTS.NAVIGATE_APPLICANTS });
 
@@ -49,20 +46,61 @@ class AutomationService {
             } catch (e) {
                 Logger.warn('Application list selector not immediately visible, continuing anyway.');
             }
-
             // 4. Create Download Folder
-            const folderInfo = await this.setupDownloadFolder(page, config.applicantsUrl, progressCallback);
+            // If resuming, use the existing folder from state if available, otherwise create/find
+            let folderInfo;
+            let resumeState = null;
 
-            // 5. Initialize Components
-            this.processor = new ApplicantProcessor(page, config, progressCallback, folderInfo.folderPath);
-            this.pagination = new PaginationManager(page, progressCallback);
-
-            // 6. Navigate to Start Page (if needed)
-            if (config.startPage > 1) {
-                await this.pagination.navigateToPage(config.startPage);
+            if (config.resume) {
+                resumeState = await StateManager.loadState();
+                if (resumeState && resumeState.folderPath) {
+                    folderInfo = {
+                        folderName: resumeState.folderName,
+                        folderPath: resumeState.folderPath,
+                        baseDir: path.dirname(resumeState.folderPath)
+                    };
+                    progressCallback({ message: 'Resuming previous session...', type: 'info' });
+                } else {
+                    Logger.warn('Resume requested but no valid state found. Starting fresh.');
+                }
             }
 
-            // 7. Start Processing Loop
+            if (!folderInfo) {
+                folderInfo = await this.setupDownloadFolder(page, config.applicantsUrl, progressCallback);
+                // Save initial state
+                await StateManager.saveState({
+                    folderName: folderInfo.folderName,
+                    folderPath: folderInfo.folderPath,
+                    applicantsUrl: config.applicantsUrl,
+                    processedApplicants: [],
+                    startPage: config.startPage,
+                    downloadCount: 0,
+                    jobTitle: folderInfo.jobTitle
+                });
+            }
+
+            // 5. Initialize Components
+            const procConfig = { ...config, jobTitle: folderInfo.jobTitle || (resumeState ? resumeState.jobTitle : 'Unknown Position') };
+            this.processor = new ApplicantProcessor(page, procConfig, progressCallback, folderInfo.folderPath);
+            this.pagination = new PaginationManager(page, progressCallback);
+
+            // Hydrate processor with resumed state
+            if (resumeState && resumeState.processedApplicants) {
+                this.processor.hydrateState(resumeState.processedApplicants, resumeState.downloadCount || 0);
+            }
+
+            // 6. Navigate to Start Page (if needed)
+            // If resuming, prefer the saved lastPage over config.startPage
+            let targetPage = config.startPage;
+            if (resumeState && resumeState.lastPage) {
+                targetPage = resumeState.lastPage;
+                Logger.info(`Resuming from saved page: ${targetPage}`);
+            }
+
+            if (targetPage > 1) {
+                await this.pagination.navigateToPage(targetPage);
+            }
+
             progressCallback({
                 message: 'Starting CV download process...',
                 status: `Processing applicants... (CVs will be saved to: ${folderInfo.folderName})`,
@@ -70,13 +108,14 @@ class AutomationService {
                 folderPath: folderInfo.folderPath
             });
 
-            await this.runProcessingLoop();
+            await this.runProcessingLoop(progressCallback);
 
-            // 8. Cleanup and Report
             await this.browserManager.close();
 
             const result = {
                 totalDownloaded: this.processor.downloadCount,
+                failedCount: this.processor.failedApplicants.length,
+                failedApplicants: this.processor.failedApplicants,
                 folderName: folderInfo.folderName,
                 folderPath: folderInfo.folderPath
             };
@@ -136,7 +175,11 @@ class AutomationService {
             const titleElement = await page.$(SELECTORS.JOB_TITLE);
             if (titleElement) {
                 const rawTitle = await titleElement.innerText();
-                jobTitle = rawTitle.trim().replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ');
+                // Clean: Remove "Job title" label if present, replace invalid chars, trim
+                jobTitle = rawTitle.replace(/^(İş unvanı|Job title)\s*/i, '')
+                    .replace(/[\\/:*?"<>|]/g, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
                 progressCallback({ message: `Found Job Title: ${jobTitle}`, type: 'info' });
             }
         } catch (err) {
@@ -176,28 +219,97 @@ class AutomationService {
         await fs.mkdir(baseDir, { recursive: true });
         await fs.mkdir(folderPath, { recursive: true });
 
-        return { folderName, folderPath, baseDir };
+        return { folderName, folderPath, baseDir, jobTitle };
     }
 
-    async runProcessingLoop() {
-        do {
-            if (this.stopped) break;
+    async runProcessingLoop(progressCallback) {
+        progressCallback({ processingStarted: true });
+
+        while (!this.stopped) {
+            // Get current page number for logging
+            let currentPage = 1;
+            try {
+                currentPage = await this.pagination.getActivePageNumber();
+            } catch (e) { }
+
+            const msg = `Processing applicants on Page ${currentPage}...`;
+            Logger.info(msg);
+            progressCallback({ message: msg, type: 'info' });
+
             await this.processor.processCurrentPage();
+
             if (this.stopped) break;
 
             const hasNext = await this.pagination.isNextPageAvailable();
+
             if (hasNext) {
+                // Ensure the user knows we are switching
+                progressCallback({ message: `Page ${currentPage} complete. Switching to next page...`, type: 'info' });
+
                 const success = await this.pagination.switchToNextPage();
-                if (!success) break;
+                if (!success) {
+                    Logger.warn('Failed to switch to next page despite hasNext=true');
+                    break;
+                }
+
+                // Optimization: Periodic Memory Cleanup
+                // Every 10 pages, reload the page to clear DOM/JS heap accumulation
+                // This prevents the "Electron froze" issue on long runs (1000+ items)
+                const newPage = await this.pagination.getActivePageNumber();
+
+                if (newPage > 1) {
+                    const memMsg = `Periodic system cleanup (Page ${newPage}). reloading to free memory...`;
+                    Logger.info(memMsg);
+                    progressCallback({ message: memMsg, type: 'info' });
+
+                    try {
+                        await this.processor.page.reload({ waitUntil: 'domcontentloaded' });
+                        await this.processor.page.waitForTimeout(2000); // Settle
+                    } catch (e) {
+                        Logger.warn('Error during memory cleanup reload', e);
+                    }
+                }
+
+                // Save new page number
+                await StateManager.saveState({ lastPage: newPage });
             } else {
+                Logger.info('No next page available. Reached end of applicant list.');
+                progressCallback({
+                    message: 'No more pages available. Job Complete.',
+                    type: 'success',
+                    status: 'Job Complete: All pages processed.',
+                    statusType: 'success'
+                });
                 break;
             }
-        } while (!this.stopped);
+        }
     }
 
-    stop() {
+    async stop() {
         this.stopped = true;
         if (this.processor) this.processor.stop();
+
+        // Final state save logic is handled within the processor loop, 
+        // but we can ensure everything is flushed if needed.
+
+        // Force close browser immediately if it exists, to ensure terminal process releases
+        if (this.browserManager) {
+            try {
+                await this.browserManager.close();
+            } catch (e) {
+                Logger.warn('Error closing browser during stop', e);
+            }
+        }
+    }
+
+    async pause() {
+        this.paused = true;
+        if (this.processor) this.processor.pause();
+    }
+
+    async resume() {
+        this.paused = false;
+        if (this.processor) this.processor.resume();
     }
 }
 
