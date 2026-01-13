@@ -441,4 +441,31 @@ window.addEventListener('DOMContentLoaded', async () => {
             ui.setResettingState(false);
         }
     });
+
+    // Theme Toggle Logic
+    const themeToggle = document.getElementById('themeToggle');
+    const themeOptions = themeToggle.querySelectorAll('span');
+
+    function setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('appTheme', theme);
+
+        themeOptions.forEach(option => {
+            if (option.dataset.theme === theme) {
+                option.classList.add('active');
+            } else {
+                option.classList.remove('active');
+            }
+        });
+    }
+
+    themeOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            setTheme(option.dataset.theme);
+        });
+    });
+
+    // Initialize theme from localStorage or default to light
+    const savedTheme = localStorage.getItem('appTheme') || 'light';
+    setTheme(savedTheme);
 });

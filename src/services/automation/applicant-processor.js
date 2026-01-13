@@ -138,6 +138,7 @@ class ApplicantProcessor {
 
                 if (this.downloadCount >= this.config.maxCvCount) {
                     this.log(`Maximum CV download limit reached: ${this.config.maxCvCount}`, 'warning');
+                    this.stop(); // Signal to stop processing
                     return;
                 }
 
@@ -243,6 +244,66 @@ class ApplicantProcessor {
         }
     }
 
+    /**
+     * Verifies if the selected applicant in the details panel matches the clickable item.
+     * Uses fuzzy matching to handle partial name matches (e.g. "Edip Emre Bodur" vs "Edip Bodur").
+     */
+    async verifySelectionWithRetry(applicantName, applicantIndex) {
+        let attempts = 0;
+        while (attempts < 3) {
+            try {
+                // Get name from details panel
+                const detailsNameEl = this.page.locator('.artdeco-entity-lockup__title').first();
+                await detailsNameEl.waitFor({ state: 'visible', timeout: 5000 });
+                const detailsName = (await detailsNameEl.innerText()).trim();
+
+                // Normalize names for comparison
+                // 1. Lowercase
+                // 2. Remove extra spaces
+                // 3. Remove titles like "Mr.", "Mrs.", "Dr."
+                // 4. Remove punctuation
+                const normalize = (str) => str.toLowerCase()
+                    .replace(/\./g, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                const n1 = normalize(applicantName);
+                const n2 = normalize(detailsName);
+
+                // Exact match check
+                if (n1 === n2) return true;
+
+                // Fuzzy match check (Feature: Fuzzy Match)
+                // Check if one contains the other (e.g. "Edip Emre Bodur" includes "Edip Bodur" parts)
+                const parts1 = n1.split(' ');
+                const parts2 = n2.split(' ');
+
+                // Count matching parts
+                let matches = 0;
+                for (const p1 of parts1) {
+                    if (parts2.includes(p1)) matches++;
+                }
+
+                // If more than 50% of the words match, consider it verified
+                // Example: "Edip (match) Emre Bodur (match)" -> 2/3 matches against "Edip Bodur"
+                const threshold = Math.min(parts1.length, parts2.length) * 0.5;
+
+                if (matches >= threshold) {
+                    this.log(`Fuzzy match verified: List="${applicantName}" vs Panel="${detailsName}"`, 'debug');
+                    return true;
+                }
+
+                this.log(`Name mismatch (Attempt ${attempts + 1}): List="${applicantName}" vs Panel="${detailsName}"`, 'warning');
+                attempts++;
+                await this.page.waitForTimeout(1000);
+            } catch (e) {
+                this.log(`Verification error: ${e.message}`, 'debug');
+                attempts++;
+            }
+        }
+        return false;
+    }
+
     async processSingleApplicant(applicantLocator) {
         await this._checkForPause();
 
@@ -267,6 +328,7 @@ class ApplicantProcessor {
         }
 
         await this._checkForPause();
+        // Reverting to original safe verification method
         const selectionSuccess = await this._selectAndVerifyApplicant(clickTarget, applicantName, applicantLocator);
 
         if (!selectionSuccess) {
@@ -549,6 +611,8 @@ class ApplicantProcessor {
                         await this.scrollToDownloadSection();
                         await this.page.waitForTimeout(1500);
                         try {
+                            // Move to neutral area (left-middle) to avoid hovering top-right profile
+                            await this.page.mouse.move(50, 400);
                             await this.page.mouse.move(100, 100);
                             await this.page.mouse.move(200, 200);
                         } catch (e) { }
@@ -586,6 +650,24 @@ class ApplicantProcessor {
 
                 await InteractionUtils.slowMouseMove(this.page, downloadBtn.first());
                 const activeBtn = downloadBtn.first();
+
+                // CRITICAL: Check href before clicking to prevent premium survey redirect
+                try {
+                    const href = await activeBtn.evaluate(el => el.href || el.getAttribute('href'));
+                    if (href && (href.includes('premium/survey') || (href.includes('premium') && href.includes('survey')))) {
+                        this.log(`BLOCKED: Download link leads to premium survey (${href}). Skipping applicant.`, 'warning');
+                        const name = applicantName || await this._getApplicantName() || 'Unknown Applicant';
+                        const pageNum = await this._getCurrentPageNumber();
+                        this.failedApplicants.push({ name, reason: 'Premium Survey Link Detected', page: pageNum });
+
+                        // IMPORTANT: Force return to skip this applicant loop immediately
+                        this.updateProgress();
+                        return;
+                    }
+                } catch (e) {
+                    this.log(`Could not check href (continuing anyway): ${e.message}`, 'debug');
+                }
+
                 await activeBtn.evaluate(el => el.removeAttribute('target')).catch(() => { });
                 await activeBtn.click({ timeout: 15000 });
 

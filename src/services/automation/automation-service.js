@@ -41,8 +41,16 @@ class AutomationService {
             }
 
             progressCallback({ message: `Navigating to applicants page: ${config.applicantsUrl}`, type: 'info' });
+
+            // Sanitize URL: ensure it has https:// protocol
+            let sanitizedUrl = config.applicantsUrl;
+            if (!sanitizedUrl.startsWith('http://') && !sanitizedUrl.startsWith('https://')) {
+                sanitizedUrl = 'https://' + sanitizedUrl;
+                Logger.info(`Added protocol to URL: ${sanitizedUrl}`);
+            }
+
             try {
-                await page.goto(config.applicantsUrl, { waitUntil: 'domcontentloaded', timeout: TIMEOUTS.NAVIGATE_APPLICANTS });
+                await page.goto(sanitizedUrl, { waitUntil: 'domcontentloaded', timeout: TIMEOUTS.NAVIGATE_APPLICANTS });
             } catch (error) {
                 if (this.stopped || error.message.includes('ERR_ABORTED') || error.message.includes('Timeout')) {
                     Logger.info('Navigation interrupted by user stop or timeout. Cleaning up...');
@@ -261,7 +269,7 @@ class AutomationService {
 
             await this.processor.processCurrentPage();
 
-            if (this.stopped) break;
+            if (this.stopped || this.processor.stopped) break;
 
             const hasNext = await this.pagination.isNextPageAvailable();
 

@@ -7,12 +7,12 @@ const SELECTORS = {
     APPLICATION_LIST: 'li.hiring-applicants__list-item',
     DETAILS_PANEL: '#hiring-detail-root',
     DOWNLOAD_BUTTON: 'a.inline-flex.align-items-center.link-without-visited-state[href]',
-    DOWNLOAD_BUTTON: 'a.inline-flex.align-items-center.link-without-visited-state[href], a:has(svg[data-test-icon="download-medium"])',
-    DOWNLOAD_BUTTON_FALLBACK: '.artdeco-card a[href]:has(svg)',
-    DOWNLOAD_BUTTON_BROAD: 'a[download], a[href$=".pdf"], button[aria-label*="Download"], a[aria-label*="Download"], a[aria-label*="indir"], a[aria-label*="İndir"]', // Catch-all including Turkish
+    DOWNLOAD_BUTTON: 'a.inline-flex.align-items-center.link-without-visited-state[href]:not([href*="premium"]):not([href*="survey"]), a:has(svg[data-test-icon="download-medium"]):not([href*="premium"]):not([href*="survey"])',
+    DOWNLOAD_BUTTON_FALLBACK: '.artdeco-card a[href]:has(svg):not([href*="premium"]):not([href*="survey"])',
+    DOWNLOAD_BUTTON_BROAD: 'a[download]:not([href*="premium"]):not([href*="survey"]), a[href$=".pdf"]:not([href*="premium"]):not([href*="survey"]), button[aria-label*="Download"], a[aria-label*="Download"]:not([href*="premium"]):not([href*="survey"]), a[aria-label*="indir"]:not([href*="premium"]):not([href*="survey"]), a[aria-label*="İndir"]:not([href*="premium"]):not([href*="survey"])', // Catch-all including Turkish
     // Dropdown menu selectors
     MORE_ACTIONS_BUTTON: 'button[aria-label*="More actions"], button[aria-label*="Diğer işlemler"], .artdeco-dropdown__trigger',
-    DOWNLOAD_MENU_ITEM: '.artdeco-dropdown__content a[href]:has(svg), .artdeco-dropdown__content a[href]:has-text("Download"), .artdeco-dropdown__content a[href]:has-text("İndir")',
+    DOWNLOAD_MENU_ITEM: '.artdeco-dropdown__content a[href]:has(svg):not([href*="premium"]):not([href*="survey"]), .artdeco-dropdown__content a[href]:has-text("Download"):not([href*="premium"]):not([href*="survey"]), .artdeco-dropdown__content a[href]:has-text("İndir"):not([href*="premium"]):not([href*="survey"])',
 
     PAGINATION_PAGE_ITEMS: '.artdeco-pagination__pages li', // Broadened to include ellipsis items that might lack data attributes
     ACTIVE_PAGE_BUTTON: 'button[aria-current="true"]',
