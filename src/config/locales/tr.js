@@ -29,6 +29,7 @@
         'btn.reset': 'Çıkış / Sıfırla',
         'btn.resumeSession': 'Oturumu Devam Ettir',
         'btn.discardSession': 'Sil ve Yeni Başla',
+        'btn.downloadLogs': 'Logları İndir',
 
         // Dashboard
         'stat.processed': 'İşlenen',

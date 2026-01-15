@@ -29,6 +29,7 @@
         'btn.reset': 'Logout / Reset',
         'btn.resumeSession': 'Resume Session',
         'btn.discardSession': 'Discard & New',
+        'btn.downloadLogs': 'Download Logs',
 
         // Dashboard
         'stat.processed': 'Processed',

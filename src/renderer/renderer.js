@@ -14,6 +14,7 @@ class UiController {
             resetBtn: document.getElementById('resetBtn'),
             // statusBox removed
             logOutput: document.getElementById('logOutput'),
+            downloadLogsBtn: document.getElementById('downloadLogsBtn'),
             folderInfoBox: document.getElementById('folderInfoBox'),
             folderName: document.getElementById('folderName'),
             folderPath: document.getElementById('folderPath'),
@@ -91,6 +92,38 @@ class UiController {
 
     clearLog() {
         this.elements.logOutput.innerHTML = '';
+    }
+
+    downloadLogs() {
+        const logLines = this.elements.logOutput.querySelectorAll('.log-line');
+        if (logLines.length === 0) {
+            this.showStatus('No logs to download', 'warning');
+            return;
+        }
+
+        let logContent = 'LinkedIn CV Downloader - Log Export\n';
+        logContent += `Export Date: ${new Date().toLocaleString()}\n`;
+        logContent += '----------------------------------------\n\n';
+
+        logLines.forEach(line => {
+            logContent += line.textContent + '\n';
+        });
+
+        try {
+            const blob = new Blob([logContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `log_export_${Date.now()}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            this.addLog('Logs downloaded successfully.', 'success');
+        } catch (e) {
+            this.showStatus('Failed to download logs', 'error');
+            this.addLog(`Log download error: ${e.message}`, 'error');
+        }
     }
 
     // Dashboard Methods
@@ -256,6 +289,10 @@ ui.elements.stopBtn.addEventListener('click', async () => {
         ui.addLog(`Error stopping: ${error.message}`, 'error');
         ui.elements.stopBtn.textContent = ui.t('btn.stop');
     }
+});
+
+ui.elements.downloadLogsBtn.addEventListener('click', () => {
+    ui.downloadLogs();
 });
 
 ui.elements.resetBtn.addEventListener('click', async () => {

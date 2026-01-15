@@ -838,7 +838,16 @@
     </div>
 
     <!-- div class="status-box" id="statusBox"></div -->
-    <div class="log-output" id="logOutput"></div>
+
+    <div
+      style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; margin-bottom: 5px;">
+      <h3 class="section-title" style="margin: 0;">Logs</h3>
+      <button type="button" id="downloadLogsBtn" class="btn-secondary"
+        style="width: auto; padding: 5px 12px; font-size: 11px;" data-i18n="btn.downloadLogs">
+        Download Logs
+      </button>
+    </div>
+    <div class="log-output" id="logOutput" style="margin-top: 5px;"></div>
 
     <!-- Custom Report Modal -->
     <div id="reportModal" class="modal-overlay" style="display: none;">

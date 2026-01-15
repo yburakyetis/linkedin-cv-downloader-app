@@ -211,6 +211,8 @@ class ApplicantProcessor {
                             this.log(`Recovery failed: ${recErr.message}`, 'error');
                             // If recovery fails, we might just have to continue and let the next loop handle it or break
                         }
+                        
+                        continue; // Retry this applicant loop iteration
                     } // End of virus scan block
 
                     this.virusScanRedirectCount = 0;
