@@ -52,8 +52,13 @@ class IpcHandlers {
 
         ipcMain.handle('reset-session', async () => {
             try {
-                const userDataPath = require('electron').app.getPath('userData');
-                await fs.rm(userDataPath, { recursive: true, force: true });
+                // 1. Clear application state
+                await StateManager.clearState();
+
+                // 2. Clear browser session data (cookies, storage, etc.)
+                const { session } = require('electron');
+                await session.defaultSession.clearStorageData();
+
                 return { success: true };
             } catch (error) {
                 Logger.error('Reset session handler failed', error);
@@ -94,16 +99,11 @@ class IpcHandlers {
         });
 
         // Check Session (basic check if user_data exists)
+        // Check Session (Check for StateManager state file)
         ipcMain.handle('check-session', async () => {
             try {
-                const userDataPath = require('electron').app.getPath('userData');
-                try {
-                    await fs.access(userDataPath);
-                    const files = await fs.readdir(userDataPath);
-                    return { exists: files.length > 0 };
-                } catch {
-                    return { exists: false };
-                }
+                const state = await StateManager.loadState();
+                return { exists: !!state };
             } catch (error) {
                 return { exists: false };
             }
